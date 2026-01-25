@@ -8,11 +8,13 @@ import {
   FlatList,
   SafeAreaView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useDatabase } from '../context/DatabaseContext';
 import { getWeightEntries, addWeightEntry } from '../database/operations';
 import { WeightEntry } from '../types';
+import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString + 'T00:00:00');
@@ -52,18 +54,35 @@ export default function BodyWeightScreen() {
     await loadEntries();
   };
 
-  const minWeight = entries.length > 0 ? Math.min(...entries.map((e) => e.weight)) : 0;
-  const maxWeight = entries.length > 0 ? Math.max(...entries.map((e) => e.weight)) : 0;
   const latestWeight = entries.length > 0 ? entries[0].weight : null;
 
-  // Get last 30 entries in chronological order for chart
-  const chartData = [...entries].reverse().slice(-30);
+  // Filter to last 3 months and sort chronologically
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const threeMonthsAgoStr = threeMonthsAgo.toISOString().split('T')[0];
 
-  const renderSimpleChart = () => {
+  const chartData = [...entries]
+    .filter((e) => e.date >= threeMonthsAgoStr)
+    .reverse();
+
+  const chartMinWeight = chartData.length > 0 ? Math.min(...chartData.map((e) => e.weight)) : 0;
+  const chartMaxWeight = chartData.length > 0 ? Math.max(...chartData.map((e) => e.weight)) : 0;
+
+  const renderLineChart = () => {
+    const screenWidth = Dimensions.get('window').width;
+    const chartWidth = screenWidth - 80; // Account for padding and labels
+    const chartHeight = 150;
+    const paddingTop = 20;
+    const paddingBottom = 30;
+    const paddingLeft = 45;
+    const paddingRight = 15;
+    const graphWidth = chartWidth - paddingLeft - paddingRight;
+    const graphHeight = chartHeight - paddingTop - paddingBottom;
+
     if (chartData.length === 0) {
       return (
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Weight Trend</Text>
+          <Text style={styles.chartTitle}>Weight Trend (3 months)</Text>
           <Text style={styles.chartEmpty}>Log your weight to see the trend chart</Text>
         </View>
       );
@@ -72,7 +91,7 @@ export default function BodyWeightScreen() {
     if (chartData.length === 1) {
       return (
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Weight Trend</Text>
+          <Text style={styles.chartTitle}>Weight Trend (3 months)</Text>
           <Text style={styles.chartEmpty}>Log more entries to see the trend</Text>
           <View style={styles.singleEntry}>
             <Text style={styles.singleEntryValue}>{chartData[0].weight} lbs</Text>
@@ -81,36 +100,123 @@ export default function BodyWeightScreen() {
       );
     }
 
-    const range = maxWeight - minWeight;
+    const range = chartMaxWeight - chartMinWeight;
     const padding = range > 0 ? range * 0.1 : 5;
-    const adjustedMin = minWeight - padding;
-    const adjustedMax = maxWeight + padding;
-    const adjustedRange = adjustedMax - adjustedMin;
+    const yMin = chartMinWeight - padding;
+    const yMax = chartMaxWeight + padding;
+    const yRange = yMax - yMin;
+
+    // Calculate x positions based on date
+    const startDate = new Date(chartData[0].date + 'T00:00:00').getTime();
+    const endDate = new Date(chartData[chartData.length - 1].date + 'T00:00:00').getTime();
+    const dateRange = endDate - startDate || 1;
+
+    const getX = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00').getTime();
+      return paddingLeft + ((date - startDate) / dateRange) * graphWidth;
+    };
+
+    const getY = (weight: number) => {
+      return paddingTop + graphHeight - ((weight - yMin) / yRange) * graphHeight;
+    };
+
+    // Build the path for the line
+    const pathData = chartData
+      .map((entry, i) => {
+        const x = getX(entry.date);
+        const y = getY(entry.weight);
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      })
+      .join(' ');
+
+    // Generate month labels
+    const monthLabels: { label: string; x: number }[] = [];
+    const seenMonths = new Set<string>();
+    chartData.forEach((entry) => {
+      const date = new Date(entry.date + 'T00:00:00');
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!seenMonths.has(monthKey)) {
+        seenMonths.add(monthKey);
+        monthLabels.push({
+          label: date.toLocaleDateString('en-US', { month: 'short' }),
+          x: getX(entry.date),
+        });
+      }
+    });
+
+    // Y-axis labels
+    const yLabels = [yMin, (yMin + yMax) / 2, yMax].map((val) => ({
+      value: Math.round(val),
+      y: getY(val),
+    }));
 
     return (
       <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Trend (last {chartData.length} entries)</Text>
-        <View style={styles.simpleChart}>
-          {chartData.map((entry, index) => {
-            const height = Math.max(
-              4,
-              ((entry.weight - adjustedMin) / adjustedRange) * 100
-            );
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.chartBar,
-                  { height: `${height}%` },
-                ]}
-              />
-            );
-          })}
-        </View>
-        <View style={styles.chartLabels}>
-          <Text style={styles.axisLabel}>{minWeight.toFixed(1)} lbs</Text>
-          <Text style={styles.axisLabel}>{maxWeight.toFixed(1)} lbs</Text>
-        </View>
+        <Text style={styles.chartTitle}>Weight Trend (3 months)</Text>
+        <Svg width={chartWidth} height={chartHeight}>
+          {/* Y-axis grid lines */}
+          {yLabels.map((label, i) => (
+            <Line
+              key={`grid-${i}`}
+              x1={paddingLeft}
+              y1={label.y}
+              x2={chartWidth - paddingRight}
+              y2={label.y}
+              stroke="#eee"
+              strokeWidth={1}
+            />
+          ))}
+
+          {/* Y-axis labels */}
+          {yLabels.map((label, i) => (
+            <SvgText
+              key={`y-label-${i}`}
+              x={paddingLeft - 5}
+              y={label.y + 4}
+              fontSize={11}
+              fill="#999"
+              textAnchor="end"
+            >
+              {label.value}
+            </SvgText>
+          ))}
+
+          {/* The line */}
+          <Path
+            d={pathData}
+            stroke="#007AFF"
+            strokeWidth={2}
+            fill="none"
+          />
+
+          {/* Data points */}
+          {chartData.map((entry, i) => (
+            <Circle
+              key={`point-${i}`}
+              cx={getX(entry.date)}
+              cy={getY(entry.weight)}
+              r={4}
+              fill="#007AFF"
+            />
+          ))}
+
+          {/* X-axis month labels */}
+          {monthLabels.map((label, i) => (
+            <SvgText
+              key={`x-label-${i}`}
+              x={label.x}
+              y={chartHeight - 5}
+              fontSize={11}
+              fill="#999"
+              textAnchor="start"
+            >
+              {label.label}
+            </SvgText>
+          ))}
+        </Svg>
+        <Text style={styles.chartSubtitle}>
+          {chartData.length} entries · {chartMinWeight.toFixed(1)} - {chartMaxWeight.toFixed(1)} lbs
+        </Text>
       </View>
     );
   };
@@ -153,7 +259,7 @@ export default function BodyWeightScreen() {
         </TouchableOpacity>
       </View>
 
-      {renderSimpleChart()}
+      {renderLineChart()}
 
       <Text style={styles.sectionTitle}>History</Text>
       <FlatList
@@ -256,26 +362,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
   },
-  simpleChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 100,
-    gap: 2,
-  },
-  chartBar: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    borderRadius: 2,
-    minHeight: 4,
-  },
-  chartLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  axisLabel: {
+  chartSubtitle: {
     fontSize: 12,
     color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
   },
   sectionTitle: {
     fontSize: 18,
