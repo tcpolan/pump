@@ -63,7 +63,16 @@ export async function updateProgram(
 }
 
 export async function deleteProgram(db: SQLite.SQLiteDatabase, id: string): Promise<void> {
+  // Delete exercise logs for all sessions of this program
+  await db.runAsync(
+    'DELETE FROM exercise_logs WHERE session_id IN (SELECT id FROM workout_sessions WHERE program_id = ?)',
+    [id]
+  );
+  // Delete workout sessions for this program
+  await db.runAsync('DELETE FROM workout_sessions WHERE program_id = ?', [id]);
+  // Delete program exercises
   await db.runAsync('DELETE FROM program_exercises WHERE program_id = ?', [id]);
+  // Finally delete the program itself
   await db.runAsync('DELETE FROM programs WHERE id = ?', [id]);
 }
 
@@ -369,4 +378,63 @@ export async function hasExercises(db: SQLite.SQLiteDatabase): Promise<boolean> 
     'SELECT COUNT(*) as count FROM exercises'
   );
   return (result?.count || 0) > 0;
+}
+
+// Clear all weight entries
+export async function clearAllWeightEntries(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.runAsync('DELETE FROM weight_entries');
+}
+
+// Get workout stats
+export async function getWorkoutStats(db: SQLite.SQLiteDatabase): Promise<{
+  totalWorkouts: number;
+  avgDurationMinutes: number;
+  lastWorkout: { programName: string; date: string } | null;
+}> {
+  // Total completed workouts
+  const totalResult = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM workout_sessions WHERE is_active = 0'
+  );
+  const totalWorkouts = totalResult?.count || 0;
+
+  // Average workout duration
+  const avgResult = await db.getFirstAsync<{ avg_duration: number | null }>(
+    'SELECT AVG(duration_minutes) as avg_duration FROM workout_sessions WHERE is_active = 0 AND duration_minutes IS NOT NULL'
+  );
+  const avgDurationMinutes = Math.round(avgResult?.avg_duration || 0);
+
+  // Last completed workout
+  const lastResult = await db.getFirstAsync<{ program_name: string; end_time: string }>(
+    `SELECT p.name as program_name, ws.end_time
+     FROM workout_sessions ws
+     JOIN programs p ON ws.program_id = p.id
+     WHERE ws.is_active = 0
+     ORDER BY ws.end_time DESC
+     LIMIT 1`
+  );
+  const lastWorkout = lastResult
+    ? { programName: lastResult.program_name, date: lastResult.end_time }
+    : null;
+
+  return { totalWorkouts, avgDurationMinutes, lastWorkout };
+}
+
+// Debug: Generate sample weight entries
+export async function generateSampleWeightEntries(db: SQLite.SQLiteDatabase): Promise<void> {
+  const baseWeight = 175;
+  const today = new Date();
+
+  for (let i = 14; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (i * 6)); // Spread over ~3 months
+    const dateStr = date.toISOString().split('T')[0];
+    // Random fluctuation between -3 and +3 lbs, with slight downward trend
+    const weight = baseWeight - (14 - i) * 0.2 + (Math.random() * 6 - 3);
+    const id = generateId();
+    await db.runAsync(
+      `INSERT INTO weight_entries (id, date, weight) VALUES (?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET weight = ?`,
+      [id, dateStr, Math.round(weight * 10) / 10, Math.round(weight * 10) / 10]
+    );
+  }
 }

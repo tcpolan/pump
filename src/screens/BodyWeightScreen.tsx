@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useDatabase } from '../context/DatabaseContext';
-import { getWeightEntries, addWeightEntry } from '../database/operations';
+import { getWeightEntries, addWeightEntry, clearAllWeightEntries } from '../database/operations';
 import { WeightEntry } from '../types';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 
@@ -52,6 +52,20 @@ export default function BodyWeightScreen() {
     await addWeightEntry(db, weight);
     setNewWeight('');
     await loadEntries();
+  };
+
+  const handleClearAll = () => {
+    Alert.alert('Clear All Entries?', 'This will delete all weight history. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear All',
+        style: 'destructive',
+        onPress: async () => {
+          await clearAllWeightEntries(db);
+          await loadEntries();
+        },
+      },
+    ]);
   };
 
   const latestWeight = entries.length > 0 ? entries[0].weight : null;
@@ -259,6 +273,12 @@ export default function BodyWeightScreen() {
         </TouchableOpacity>
       </View>
 
+      {entries.length > 0 && (
+        <TouchableOpacity style={styles.clearButton} onPress={handleClearAll}>
+          <Text style={styles.clearButtonText}>Clear All History</Text>
+        </TouchableOpacity>
+      )}
+
       {renderLineChart()}
 
       <Text style={styles.sectionTitle}>History</Text>
@@ -398,5 +418,15 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  clearButton: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#ff3b30',
+    fontSize: 14,
   },
 });
