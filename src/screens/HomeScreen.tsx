@@ -73,19 +73,28 @@ export default function HomeScreen() {
   };
 
   const renderProgram = ({ item }: { item: Program }) => (
-    <TouchableOpacity
-      style={styles.programCard}
-      onPress={() => handleStartWorkout(item)}
-      onLongPress={() => navigation.navigate('ProgramEditor', { programId: item.id, programName: item.name })}
-    >
+    <View style={styles.programCard}>
       <View style={styles.programInfo}>
         <Text style={styles.programName}>{item.name}</Text>
         {item.description && (
           <Text style={styles.programDescription}>{item.description}</Text>
         )}
       </View>
-      <Text style={styles.startText}>Start</Text>
-    </TouchableOpacity>
+      <View style={styles.programActions}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('ProgramEditor', { programId: item.id, programName: item.name })}
+        >
+          <Text style={styles.editText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => handleStartWorkout(item)}
+        >
+          <Text style={styles.startButtonText}>Start</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   return (
@@ -96,7 +105,7 @@ export default function HomeScreen() {
             source={require('../../assets/icon.png')}
             style={styles.logo}
           />
-          <Text style={styles.title}>ToFailure</Text>
+          <Text style={styles.title}>toFailure</Text>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
@@ -322,10 +331,30 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  startText: {
+  programActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  editText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#999',
     fontWeight: '500',
+  },
+  startButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  startButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
   emptyState: {
     flex: 1,

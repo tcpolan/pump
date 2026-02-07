@@ -1,10 +1,10 @@
-# Privacy Policy for ToFailure
+# Privacy Policy for toFailure
 
 **Last updated: February 5, 2026**
 
 ## Overview
 
-ToFailure is a workout tracking app that respects your privacy. We do not collect, store, or share any of your personal information.
+toFailure is a workout tracking app that respects your privacy. We do not collect, store, or share any of your personal information.
 
 ## Data Storage
 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ToFailure",
+    "name": "toFailure",
     "slug": "tofailure",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -39,7 +39,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "488e7730-6d28-4516-9c48-0229afc6d8d3"
+        "projectId": "b25d3989-658e-400f-b72a-780ccdbaadfe"
       }
     },
     "owner": "tcpolan"
