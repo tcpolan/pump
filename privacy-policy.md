@@ -1,10 +1,10 @@
-# Privacy Policy for 8-Bit Pump
+# Privacy Policy for ToFailure
 
 **Last updated: February 5, 2026**
 
 ## Overview
 
-8-Bit Pump is a workout tracking app that respects your privacy. We do not collect, store, or share any of your personal information.
+ToFailure is a workout tracking app that respects your privacy. We do not collect, store, or share any of your personal information.
 
 ## Data Storage
 

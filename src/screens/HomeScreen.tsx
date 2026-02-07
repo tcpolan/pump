@@ -96,7 +96,7 @@ export default function HomeScreen() {
             source={require('../../assets/icon.png')}
             style={styles.logo}
           />
-          <Text style={styles.title}>Pump</Text>
+          <Text style={styles.title}>ToFailure</Text>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
